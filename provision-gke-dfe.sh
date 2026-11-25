@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ID="prj-emm-demos-2022"
+PROJECT_ID="tu-proyecto-gcp"
 CLUSTER_NAME="gke-dfe-test"
 REGION="us-central1"
 
