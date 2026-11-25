@@ -1,6 +1,6 @@
 # Guía de Pruebas: GKE Design for Flexibility and Efficiency (DFE) con `ComputeClass`
 
-Esta guía documenta la arquitectura, comandos `gcloud`, manifiestos de Kubernetes (`ComputeClass` y `Deployments`) y el código equivalente en **Terraform** para desplegar un clúster GKE Regional y Privado siguiendo las mejores prácticas de **Obtainability (Obtención de capacidad)** ante falta de stock (*stockouts*).
+Esta guía documenta la arquitectura, comandos `gcloud`, manifiestos de Kubernetes (`ComputeClass` y `Deployments`) y el código equivalente en **Terraform** para desplegar un clúster GKE Regional y Privado siguiendo las mejores prácticas de **Obtainability (Obtención de capacidad)** para un mayor grado de obtención de recursos de manera automática
 
 ---
 
