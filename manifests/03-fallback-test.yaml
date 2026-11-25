@@ -1,0 +1,45 @@
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: default
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: ScaleUpAnyway
+  priorities:
+    # Simulación de fallo en N4 para nuevos nodos
+    - machineFamily: n4
+      minCores: 512
+      minMemoryGb: 16
+    # Fallback inmediato a C3 (4 vCPU, 16 GB)
+    - machineFamily: c3
+      minCores: 4
+      minMemoryGb: 16
+    - machineFamily: n2
+      minCores: 4
+      minMemoryGb: 16
+    - machineFamily: e2
+      minCores: 4
+      minMemoryGb: 16
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fallback-test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fallback-test
+  template:
+    metadata:
+      labels:
+        app: fallback-test
+    spec:
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              cpu: "3200m"
+              memory: "8Gi"

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zone-spread-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zone-spread-app
+  template:
+    metadata:
+      labels:
+        app: zone-spread-app
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - zone-spread-app
+              topologyKey: topology.kubernetes.io/zone
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"

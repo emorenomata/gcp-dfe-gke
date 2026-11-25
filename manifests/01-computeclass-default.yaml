@@ -1,0 +1,30 @@
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: default
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: ScaleUpAnyway
+  activeMigration:
+    optimizeRulePriority: true
+  autoscalingPolicy:
+    consolidationDelayMinutes: 5
+    consolidationThreshold: 70
+  priorities:
+    # Prioridad 1: N4 (Última generación propósito general)
+    - machineFamily: n4
+      minCores: 4
+      minMemoryGb: 16
+    # Prioridad 2: C3 (Optimizada para cómputo)
+    - machineFamily: c3
+      minCores: 4
+      minMemoryGb: 16
+    # Prioridad 3: N2 (Propósito general)
+    - machineFamily: n2
+      minCores: 4
+      minMemoryGb: 16
+    # Prioridad 4: E2 (Alta disponibilidad base)
+    - machineFamily: e2
+      minCores: 4
+      minMemoryGb: 16
