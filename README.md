@@ -6,7 +6,7 @@ Esta guía documenta la arquitectura, comandos `gcloud`, manifiestos de Kubernet
 
 ## 1. Arquitectura y Flujo de Obtainability
 
-El problema clásico al crear un clúster GKE Standard es el **"huevo y la gallina"**:
+Para DFE, el cluster de GKE debe de existir.  **¿Cómo logramos justo qe no falle al crearlo?**:
 1. El recurso `ComputeClass` es un CRD de Kubernetes (requiere que el Control Plane ya exista para aplicarse con `kubectl`).
 2. Si creamos el clúster pidiendo directamente nodos grandes (ej. 4 vCPUs / 16 GB RAM en las 3 zonas) y hay un *stockout* en la región, el comando `gcloud container clusters create` fallará antes de poder configurar el `ComputeClass`.
 
@@ -161,4 +161,80 @@ kubectl get nodes -L cloud.google.com/compute-class,node.kubernetes.io/instance-
 
 # 4. Verificar qué ComputeClass fue asignado a cada Pod
 kubectl get pods -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,COMPUTE_CLASS:.spec.nodeSelector."cloud\.google\.com/compute-class"
+```
+
+---
+
+## 4. Integración en Scripts Corporativos Existentes de Creación de GKE
+
+Si ya cuentas con un script automatizado que aprovisiona clústeres GKE con configuraciones personalizadas (VPC, subredes, rangos secundarios, monitoreo, Custom Service Account, etc.), solo necesitas agregar los siguientes parámetros para asegurar que todo el flujo de `ComputeClass` funcione correctamente:
+
+### 4.1 Los 3 Parámetros Clave en `gcloud container clusters create`
+
+```bash
+  --enable-default-compute-class \
+  --autoscaling-profile="optimize-utilization" \
+  --autoprovisioning-service-account="TU_SA_CUSTOM@TU_PROYECTO.iam.gserviceaccount.com" \
+```
+
+1. **`--enable-default-compute-class`** *(Obligatorio)*:
+   Activa el webhook del clúster que asocia automáticamente todos los pods nuevos al `ComputeClass` `default` y habilita la auto-creación de node pools.
+2. **`--autoprovisioning-service-account="..."`** *(Crítico si usas Custom Service Account)*:
+   El parámetro tradicional `--service-account` **solo** aplica al `default-pool` inicial. Si no se incluye `--autoprovisioning-service-account`, los nuevos node pools auto-creados por el `ComputeClass` (`n4`, `c3`, `n2`, etc.) intentarán usar la *Compute Engine Default Service Account*.
+3. **`--autoscaling-profile="optimize-utilization"`** *(Recomendado)*:
+   Asegura que los node pools temporales creados por fallback se compacten y se eliminen automáticamente en cuanto dejen de utilizarse.
+
+---
+
+### 4.2 Parámetros Recomendados para Conectividad `kubectl` y Bootstrap Ligero
+
+Para evitar que la creación inicial falle por falta de stock del nodo base o que `kubectl` sufra *timeouts* de red hacia el Control Plane privado:
+
+```bash
+  # Permite conectar kubectl vía DNS sin requerir IP pública ni VPN hacia el Master:
+  --enable-dns-access \
+
+  # Bootstrap mínimo para el default-pool inicial (evita stockouts durante clusters create):
+  --machine-type="e2-micro" \
+  --num-nodes=1 \
+  --location-policy="ANY" \
+```
+*(Al ejecutar `gcloud container clusters get-credentials`, recuerda añadir siempre la bandera `--dns-endpoint`).*
+
+---
+
+### 4.3 Herencia de Service Account Custom dentro del YAML del `ComputeClass` (`nodePoolConfig`)
+
+Los node pools auto-creados por `ComputeClass` heredan automáticamente la VPC y subred del clúster. Para garantizar que todos los node pools creados dinámicamente utilicen también tu **Custom Service Account** a nivel de manifiesto, incluye el bloque `nodePoolConfig` en tu `ComputeClass`:
+
+```yaml
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: default
+spec:
+  nodePoolAutoCreation:
+    enabled: true
+  nodePoolConfig:
+    serviceAccount: "TU_SA_CUSTOM@TU_PROYECTO.iam.gserviceaccount.com"
+    imageType: "COS_CONTAINERD"
+  whenUnsatisfiable: ScaleUpAnyway
+  activeMigration:
+    optimizeRulePriority: true
+  autoscalingPolicy:
+    consolidationDelayMinutes: 5
+    consolidationThreshold: 70
+  priorities:
+    - machineFamily: n4
+      minCores: 4
+      minMemoryGb: 16
+    - machineFamily: c3
+      minCores: 4
+      minMemoryGb: 16
+    - machineFamily: n2
+      minCores: 4
+      minMemoryGb: 16
+    - machineFamily: e2
+      minCores: 4
+      minMemoryGb: 16
 ```
