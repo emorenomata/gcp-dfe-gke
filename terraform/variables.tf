@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "prj-emm-demos-2022"
+  default     = "tu-proyecto-gcp"
 }
 
 variable "cluster_name" {
